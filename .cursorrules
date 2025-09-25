@@ -1,0 +1,145 @@
+You are an full-stack development expert in **Python, FastAPI, scalable API development, TypeScript, React (with Next.js), Tailwind CSS,** and **Shadcn UI**.
+
+### Key Principles
+
+- Write concise, technical responses with accurate examples in both Python and TypeScript.
+- Use **functional and declarative programming patterns** in TypeScript. Avoid classes unless absolutely necessary for specific library integrations or complex stateful logic not manageable by hooks.
+- Prefer **iteration and modularization** over code duplication. Write DRY (Don't Repeat Yourself) code.
+- Use descriptive variable names, often incorporating auxiliary verbs:
+  - For TypeScript, use camelCase (e.g., `isActive`, `canSubmit`, `isLoading`, `fetchUsers`, `formatDate`).
+  - For Python, use snake_case (e.g., `is_active`, `can_submit`, `is_loading`, `fetch_users`, `format_date`).
+- Follow proper **naming conventions**:
+  - For TypeScript: use lowercase with dashes for directories (e.g., `components/auth-wizard`, `utils/date-helpers`).
+  - For Python: use lowercase with underscores (e.g., `routers/user_routes.py`, `core/database.py`).
+
+### Project Structure
+
+- **Frontend**:
+  - **Language**: TypeScript
+  - **Framework**: Next.js (App Router)
+  - **UI Library**: Tailwind CSS, Shadcn UI
+  - **Build Tool**: Turbopack (as Next.js's bundler)
+  - **State Management/Data Fetching**: TanStack Query (React Query) for server state; Zustand or Jotai for complex client state if needed.
+  - **Directory Structure**:
+    - `web/src/`: Main source code
+    - `web/src/app/`: Next.js App Router (e.g., `web/src/app/dashboard/page.tsx`, `web/src/app/layout.tsx`)
+    - `web/src/components/`: Reusable React components.
+    - `web/src/lib/` or `web/src/utils/`: Utility functions.
+    - `web/public/`: Static assets.
+  - **Configuration Files**:
+    - `next.config.ts` (or `.js`)
+    - `tsconfig.json`
+    - `tailwind.config.ts` (or `.js`)
+    - `postcss.config.ts` (or `.js`)
+  - **Docker Files**:
+    - `Dockerfile`
+    - `Dockerfile.dev`
+
+- **Backend**:
+  - **Language**: Python 3.10+
+  - **Framework**: FastAPI
+  - **Database**: PostgreSQL (SQLite for local development)
+  - **Vector Database**: faiss
+  - **Caching**: Redis
+  - **Logging**: loguru; use the `logger` object (e.g., `from loguru import logger`) for all logging.
+  - **Background Tasks**: Celery with RabbitMQ (Redis for local development).
+  - **Testing Framework**: pytest
+  - **Code Formatting & Linting**: Ruff
+  - **Dependency Management**: uv
+  - **Server**: uvicorn (with Caddy for reverse proxy in production).
+  - **Documentation**: Google style docstrings for all public modules, classes, functions, and methods.
+  - **Directory Structure**:
+    - `api/src/`: Main source code (e.g., `api/src/main.py`, `api/src/api/`, `api/src/core/`, `api/src/middlewares`, `api/src/crud/`, `api/src/models/`, `api/src/schemas/`)
+    - `api/tests/`: Tests
+  - **Configuration Files**:
+    - `pyproject.toml`: For project metadata, dependencies (uv), and tool configuration (Ruff).
+    - `.env` / `.env.example`: Environment variables.
+    - `alembic.ini`: Database migration configuration.
+  - **Docker Files**:
+    - `Dockerfile`
+    - `Dockerfile.dev`
+
+### Code Style and Structure
+
+**General:**
+- **Code Comments**: Write clear, concise comments for complex logic, non-obvious decisions, or to explain the "why" behind code. Use `// TODO:` or `# TODO:` for planned work.
+
+**Backend (Python/FastAPI)**:
+
+- Use `def` for synchronous pure functions and `async def` for asynchronous operations (especially I/O bound).
+- **Type Hints**: Strictly use the `typing` module. All functions, methods, and class members MUST have type annotations.
+- **Data Validation & Serialization**: Use Pydantic models extensively for request body validation, query parameter validation, and response models.
+- **File Structure**: Follow clear separation of concerns with directories for routes, services, models/schemas, core logic, and utilities.
+- **RORO Pattern**: Adhere to "Receive an Object, Return an Object." For FastAPI, this means Pydantic models for input and output.
+- **Error Handling**:
+  - Handle errors and validate inputs at the beginning of functions using guard clauses for early returns.
+  - Avoid deeply nested `if` statements.
+  - Implement comprehensive logging for errors (using `loguru`).
+  - Define and use custom exception classes inheriting from `HTTPException` for API-specific errors.
+
+**Frontend (TypeScript/React/Next.js)**:
+
+- Prefer `interface` over `type` for defining object shapes and component props. Use `type` for unions, intersections, or primitives.
+- Avoid `enum`; use string literal unions or `as const` objects (maps) instead (e.g., `const STATUS = { ACTIVE: 'active', INACTIVE: 'inactive' } as const; type Status = typeof STATUS[keyof typeof STATUS];`).
+- **Functional Components**: Write all components as functional components using React Hooks, with clear TypeScript interfaces for props.
+- **Server and Client Components (Next.js App Router)**:
+  - Default to Server Components for better performance.
+  - Use Client Components (`'use client'`) sparingly, only for components requiring interactivity, browser APIs, or React hooks like `useState`, `useEffect`. Keep Client Components small and push them to the leaves of the component tree.
+  - Wrap Client Components that fetch data or have potentially long rendering times in `<Suspense>` with appropriate fallback UI.
+- **UI and Styling**: Implement responsive design using Tailwind CSS with Shadcn UI, adopting a mobile-first approach.
+- **State Management**:
+  - Use TanStack Query (React Query) for managing server state (data fetching, caching, synchronization).
+  - For client-side state, start with React's built-in hooks (`useState`, `useReducer`, `useContext`). For more complex global client state, consider Zustand or Jotai.
+- **Error Handling**:
+  - Implement React Error Boundaries for graceful error handling in component trees.
+  - Provide user-friendly error messages and feedback.
+
+### Performance Optimization
+
+**Backend**:
+
+- **Asynchronous Operations**: Leverage `async/await` to minimize blocking I/O operations.
+- **Caching**: Implement strategic caching for frequently accessed, computationally expensive, or slowly changing data using Redis.
+- **Database Optimization**: Write efficient SQL queries; use database indexes appropriately. Consider lazy loading for related data in ORM queries.
+- **Lazy Loading**: Use lazy loading techniques for large datasets and components of API responses where applicable.
+
+**Frontend**:
+
+- **Component Rendering (Next.js)**: Maximize Server Components. Minimize the scope and impact of Client Components.
+- **Code Splitting**: Leverage Next.js's automatic code splitting per route.
+- **Dynamic Imports**: Use `next/dynamic` for dynamically loading components or libraries that are not critical for the initial page load.
+- **Image Optimization**: Use `next/image` for automatic image optimization (resizing, WebP format, lazy loading).
+- **Memoization**: Use `React.memo`, `useMemo`, and `useCallback` judiciously to prevent unnecessary re-renders in Client Components.
+
+### Project Conventions
+
+**Backend**:
+
+1.  Follow **RESTful API design principles**. Use appropriate HTTP verbs, status codes, and resource-based URLs.
+2.  Rely on **FastAPI’s dependency injection system** for managing dependencies like database sessions, service instances, and configurations.
+3.  Use **SQLAlchemy 2.0** (async support) for ORM features if a full ORM is required. For simpler queries, direct SQL or a query builder might be preferred.
+4.  Ensure **CORS** is properly configured, especially for local development (`AllowAnyOrigin` for dev, specific origins for production).
+5.  Use **Docker** for containerization. Ensure `Dockerfile` and `Dockerfile.dev` are optimized for build times and image size.
+6.  **API Versioning**: Consider API versioning strategies (e.g., URL path `/v1/`, custom header) if breaking changes are anticipated.
+
+**Frontend**:
+
+1.  Optimize **Core Web Vitals** (LCP, INP (replaces FID), CLS).
+2.  Strictly limit `use client` directives to the smallest possible components that absolutely require client-side interactivity or browser APIs.
+3.  Use **Docker** for containerization. Ensure `Dockerfile` and `Dockerfile.dev` are optimized.
+4.  **Accessibility (a11y)**: Strive to build accessible interfaces following WCAG guidelines. Use semantic HTML and ARIA attributes where appropriate.
+
+### Security
+- **Input Validation & Sanitization**: Rigorously validate and sanitize all user inputs on both frontend and backend.
+- **Output Encoding**: Ensure proper encoding of data displayed in the frontend to prevent XSS.
+- **Principle of Least Privilege**: Apply this to database users, API access, and file system permissions.
+- **Dependency Security**: Regularly update dependencies and audit for known vulnerabilities.
+- Be mindful of common web vulnerabilities (OWASP Top 10).
+
+### Testing and Deployment
+
+- Implement **unit tests** for critical business logic, utility functions, and components (both frontend and backend). Aim for good test coverage.
+- **Integration Tests**: Write integration tests for API endpoints (backend) and key user flows (frontend).
+- Use **Docker** and **docker compose** (the `compose` subcommand, e.g., `docker compose up`) for orchestration in both development and production environments. Avoid the obsolete `docker-compose` command.
+- Ensure robust error handling, input validation, and sanitization throughout the application as a defense-in-depth measure.
+- **CI/CD**: Set up (or plan for) a CI/CD pipeline to automate testing, building, and deployment.

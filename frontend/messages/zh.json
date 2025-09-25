@@ -1,0 +1,64 @@
+{
+  "LoginPage": {
+    "c_h_title": "登录您的账户",
+    "c_h_description": "请在下方输入您的邮箱来登录您的账户",
+    "c_c_email": "邮箱",
+    "c_c_password": "密码",
+    "c_c_forgot_password": "忘记密码？",
+    "c_c_login": "登录",
+    "c_c_login_with_google": "使用 Google 登录",
+    "c_c_login_with_github": "使用 Github 登录",
+    "c_c_dont_have_an_account": "还没有账户？",
+    "c_c_sign_up": "注册"
+  },
+  "RegisterPage": {
+    "c_h_title": "创建账户",
+    "c_h_description": "请在下方输入您的邮箱来创建账户",
+    "c_c_email": "邮箱",
+    "c_c_password": "密码",
+    "c_c_confirm_password": "确认密码",
+    "c_c_register": "注册",
+    "c_c_already_have_an_account": "已经有账户了？",
+    "c_c_login": "登录"
+  },
+  "Common": {
+    "brand": "LLM工具集"
+  },
+  "LLMMemoryCalculatorPage": {
+    "l_c_h_title": "LLM 推理显存计算器",
+    "l_c_c_1_model": "模型",
+    "l_c_c_2_precision": "权重精度",
+    "l_c_c_2_precision_tip": "推理时模型权重的精度，较低的精度使用更少的显存但可能会影响模型性能",
+    "l_c_c_3_batch_size": "批次大小",
+    "l_c_c_3_batch_size_tip": "每步同时处理的输入数量，影响 KV 缓存和激活所占显存",
+    "l_c_c_4_sequence_length": "序列长度",
+    "l_c_c_4_sequence_length_tip": "每个输入的最大token数，影响 KV 缓存和激活所占显存",
+    "l_c_c_5_gpu_model": "GPU 型号",
+    "l_c_c_6_gpu_count": "GPU 数量",
+    "l_c_c_7_kv_cache_precision": "KV 缓存精度",
+    "l_c_c_7_kv_cache_precision_tip": "推理时 KV 缓存的精度，较低的精度使用更少的显存，尤其适用于长序列模型",
+    "is_calculating": "计算中...",
+    "button_name": "提交计算",
+    "r_c_h_title": "内存占用",
+    "r_c_c_1_gpu_utilization_circle": "显存利用率",
+    "r_c_c_2_gpu_utilization_text_1": "计算所需",
+    "r_c_c_2_gpu_utilization_text_2": "实际提供",
+    "r_c_c_2_gpu_utilization_text_3": "显存",
+    "get_utilization_status_level_4": "不足",
+    "get_utilization_status_level_3": "紧张",
+    "get_utilization_status_level_2": "中等",
+    "get_utilization_status_level_1": "充裕",
+    "tips": "默认开启 Flash Attention 和 Page Attention 优化",
+    "feedback": "提交反馈/报告问题"
+  },
+  "MemoryBreakdownComponent": {
+    "memory_item_1": "模型权重",
+    "memory_item_2": "KV缓存",
+    "memory_item_3": "激活",
+    "memory_item_4": "额外开销",
+    "memory_item_5": "优化器",
+    "memory_item_6": "梯度",
+    "c_h_title": "内存分配",
+    "c_c_total": "总计"
+  }
+}

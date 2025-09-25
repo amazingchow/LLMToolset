@@ -12,7 +12,7 @@ from typing import Any, Dict, List
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 
-from config.memory import DATA_TYPES, OPTIMIZERS
+from config.memory import DATA_TYPES, OPTIMIZERS, SFT_OR_PEFT
 from utils.help import load_predefined_models
 from utils.memory import calculate_inference_memory, calculate_training_memory
 
@@ -43,10 +43,15 @@ def extract_model_params(model_name: str, config: Dict[str, Any]) -> Dict[str, A
     return {
         "model_size": model_size,
         "precision": config.get("torch_dtype", "float32"),
+        "num_hidden_layers": config.get("num_hidden_layers", 36),
         "hidden_size": config.get("hidden_size", 4096),
-        "num_hidden_layers": config.get("num_hidden_layers", 32),
         "num_attention_heads": config.get("num_attention_heads", 32),
-        "num_key_value_heads": config.get("num_key_value_heads", 32),
+        "head_dim": config.get("head_dim", 128),
+        "num_key_value_heads": config.get(
+            "num_key_value_heads", config.get("num_attention_heads", 32)
+        ),  # MHA 的 KV 头数等于查询头数
+        "use_flash_attention": False,
+        "use_page_attention": False,
     }
 
 
@@ -58,7 +63,7 @@ def health_check():
 
 @app.route("/api/models", methods=["GET"])
 def list_models():
-    """Get list of available model configurations."""
+    """Get list of available models."""
     try:
         models = get_available_models()
         return jsonify({"models": models, "count": len(models)})
@@ -68,7 +73,7 @@ def list_models():
 
 @app.route("/api/models/<model_name>", methods=["GET"])
 def get_model_info(model_name: str):
-    """Get detailed information about a specific model configuration."""
+    """Get detailed information about a specific model."""
     try:
         config = MODELS[model_name]
         params = extract_model_params(model_name, config)
@@ -87,12 +92,12 @@ def calculate_inference():
 
     Request body should contain:
     - model_name: Name of model configuration to use
-    - precision: Data type precision
+    - precision: Data type precision for model weights
     - batch_size: Batch size for inference
     - sequence_length: Input sequence length
-    - hidden_size: Model hidden size
-    - num_hidden_layers: Number of hidden layers
-    - num_attention_heads: Number of attention heads
+    - kv_cache_precision: Data type precision for KV cache
+    - use_flash_attention: Whether to use Flash Attention
+    - use_page_attention: Whether to use Page Attention
     """
     try:
         data = request.get_json()
@@ -104,6 +109,8 @@ def calculate_inference():
             return jsonify({"error": "batch_size is required"}), 400
         if "sequence_length" not in data:
             return jsonify({"error": "sequence_length is required"}), 400
+        if "kv_cache_precision" not in data:
+            return jsonify({"error": "kv_cache_precision is required"}), 400
 
         model_name = data["model_name"]
         config = MODELS[model_name]
@@ -112,27 +119,29 @@ def calculate_inference():
             "precision",
             "batch_size",
             "sequence_length",
-            "hidden_size",
-            "num_hidden_layers",
-            "num_attention_heads",
+            "kv_cache_precision",
+            "use_flash_attention",
+            "use_page_attention",
         ]:
             if key in data:
                 params[key] = data[key]
         if params.get("precision") not in DATA_TYPES:
             return jsonify({"error": f"Invalid precision. Must be one of: {DATA_TYPES}"}), 400
-
         result = calculate_inference_memory(
             model_size=params["model_size"],
             precision=params["precision"],
             batch_size=params["batch_size"],
             sequence_length=params["sequence_length"],
-            hidden_size=params["hidden_size"],
+            kv_cache_precision=params["kv_cache_precision"],
             num_hidden_layers=params["num_hidden_layers"],
+            hidden_size=params["hidden_size"],
             num_attention_heads=params["num_attention_heads"],
+            head_dim=params["head_dim"],
+            num_key_value_heads=params["num_key_value_heads"],
+            use_flash_attention=params["use_flash_attention"],
+            use_page_attention=params["use_page_attention"],
         )
-
         return jsonify({"calculation_type": "inference", "parameters": params, "memory_requirements": result})
-
     except FileNotFoundError as e:
         return jsonify({"error": str(e)}), 404
     except Exception as e:
@@ -146,14 +155,12 @@ def calculate_training():
 
     Request body should contain:
     - model_name: Name of model configuration to use
-    - precision: Data type precision
+    - precision: Data type precision for model weights
     - batch_size: Batch size for training
     - sequence_length: Input sequence length
-    - hidden_size: Model hidden size
-    - num_hidden_layers: Number of hidden layers
-    - num_attention_heads: Number of attention heads
     - optimizer: Optimizer type
     - trainable_parameters: Percentage of trainable parameters
+    - use_flash_attention: Whether to use Flash Attention
     """
     try:
         data = request.get_json()
@@ -177,11 +184,9 @@ def calculate_training():
             "precision",
             "batch_size",
             "sequence_length",
-            "hidden_size",
-            "num_hidden_layers",
-            "num_attention_heads",
             "optimizer",
             "trainable_parameters",
+            "use_flash_attention",
         ]:
             if key in data:
                 params[key] = data[key]
@@ -195,15 +200,16 @@ def calculate_training():
             precision=params["precision"],
             batch_size=params["batch_size"],
             sequence_length=params["sequence_length"],
-            hidden_size=params["hidden_size"],
             num_hidden_layers=params["num_hidden_layers"],
+            hidden_size=params["hidden_size"],
             num_attention_heads=params["num_attention_heads"],
+            head_dim=params["head_dim"],
+            num_key_value_heads=params["num_key_value_heads"],
             optimizer=params["optimizer"],
             trainable_parameters=params["trainable_parameters"],
+            use_flash_attention=params["use_flash_attention"],
         )
-
         return jsonify({"calculation_type": "training", "parameters": params, "memory_requirements": result})
-
     except FileNotFoundError as e:
         return jsonify({"error": str(e)}), 404
     except Exception as e:
@@ -213,7 +219,14 @@ def calculate_training():
 @app.route("/api/config/options", methods=["GET"])
 def get_config_options():
     """Get available configuration options (data types, optimizers, etc.)."""
-    return jsonify({"data_types": DATA_TYPES, "optimizers": OPTIMIZERS, "available_models": get_available_models()})
+    return jsonify(
+        {
+            "data_types": DATA_TYPES,
+            "optimizers": OPTIMIZERS,
+            "sft_or_peft": SFT_OR_PEFT,
+            "available_models": get_available_models(),
+        }
+    )
 
 
 @app.errorhandler(404)

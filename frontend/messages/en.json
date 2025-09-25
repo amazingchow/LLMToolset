@@ -1,0 +1,64 @@
+{
+  "LoginPage": {
+    "c_h_title": "Login to your account",
+    "c_h_description": "Enter your email below to login to your account",
+    "c_c_email": "Email",
+    "c_c_password": "Password",
+    "c_c_forgot_password": "Forgot your password?",
+    "c_c_login": "Login",
+    "c_c_login_with_google": "Login with Google",
+    "c_c_login_with_github": "Login with Github",
+    "c_c_dont_have_an_account": "Don't have an account?",
+    "c_c_sign_up": "Sign up"
+  },
+  "RegisterPage": {
+    "c_h_title": "Create an account",
+    "c_h_description": "Enter your email below to create an account",
+    "c_c_email": "Email",
+    "c_c_password": "Password",
+    "c_c_confirm_password": "Confirm Password",
+    "c_c_register": "Register",
+    "c_c_already_have_an_account": "Already have an account?",
+    "c_c_login": "Login"
+  },
+  "Common": {
+    "brand": "LLM Toolset"
+  },
+  "LLMMemoryCalculatorPage": {
+    "l_c_h_title": "LLM Inference VRAM Calculator",
+    "l_c_c_1_model": "Model",
+    "l_c_c_2_precision": "Weights Precision",
+    "l_c_c_2_precision_tip": "The precision of the model weights, lower precision uses less VRAM but may impact model performance",
+    "l_c_c_3_batch_size": "Batch Size",
+    "l_c_c_3_batch_size_tip": "The number of inputs processed simultaneously, affects KV cache and activation memory",
+    "l_c_c_4_sequence_length": "Sequence Length",
+    "l_c_c_4_sequence_length_tip": "The maximum number of tokens per input, affects KV cache and activation memory",
+    "l_c_c_5_gpu_model": "GPU Model",
+    "l_c_c_6_gpu_count": "GPU Count",
+    "l_c_c_7_kv_cache_precision": "KV Cache Precision",
+    "l_c_c_7_kv_cache_precision_tip": "The precision of the KV cache, lower precision uses less VRAM, especially for long sequence models",
+    "is_calculating": "Calculating...",
+    "button_name": "Submit",
+    "r_c_h_title": "Memory Usage",
+    "r_c_c_1_gpu_utilization_circle": "VRAM Util",
+    "r_c_c_2_gpu_utilization_text_1": "Required",
+    "r_c_c_2_gpu_utilization_text_2": "Available",
+    "r_c_c_2_gpu_utilization_text_3": "VRAM",
+    "get_utilization_status_level_4": "Insufficient",
+    "get_utilization_status_level_3": "Tight",
+    "get_utilization_status_level_2": "Moderate",
+    "get_utilization_status_level_1": "Ample",
+    "tips": "Default enable Flash Attention and Page Attention optimization",
+    "feedback": "request a issue"
+  },
+  "MemoryBreakdownComponent": {
+    "memory_item_1": "Model Weights",
+    "memory_item_2": "KV Cache",
+    "memory_item_3": "Activations",
+    "memory_item_4": "Overhead",
+    "memory_item_5": "Optimizer",
+    "memory_item_6": "Gradients",
+    "c_h_title": "Memory Allocation",
+    "c_c_total": "Total"
+  }
+}

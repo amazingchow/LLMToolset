@@ -3,8 +3,6 @@
 # =============================================================================
 # API Test Script for LLM Toolset Backend
 # =============================================================================
-# This script tests various API endpoints of the LLM Toolset backend service.
-# It performs health checks, model queries, and memory calculations.
 
 set -euo pipefail  # Exit on error, undefined vars, pipe failures
 
@@ -13,24 +11,27 @@ set -euo pipefail  # Exit on error, undefined vars, pipe failures
 # =============================================================================
 
 readonly BASE_URL="http://localhost:15050"
-readonly MODEL_NAME="Qwen3-8B-Base"
 readonly HEADERS="Content-Type: application/json"
-
-# Model configuration for memory calculations
-readonly MODEL_CONFIG=(
+readonly MODEL_NAME="Qwen3-8B"
+# Inference configuration for memory calculations
+readonly INFERENCE_CONFIG=(
     "model_name=${MODEL_NAME}"
-    "precision=float16"
+    "precision=bfloat16"
     "batch_size=1"
-    "sequence_length=2048"
-    "hidden_size=4096"
-    "num_hidden_layers=36"
-    "num_attention_heads=32"
+    "sequence_length=8192"
+    "kv_cache_precision=bfloat16"
+    "use_flash_attention=1"
+    "use_page_attention=1"
 )
-
-# Training-specific configuration
+# Training configuration for memory calculations
 readonly TRAINING_CONFIG=(
+    "model_name=${MODEL_NAME}"
+    "precision=bfloat16"
+    "batch_size=1"
+    "sequence_length=8192"
     "optimizer=AdamW"
-    "trainable_parameters=100"
+    "trainable_parameters=1"
+    "use_flash_attention=1"
 )
 
 # =============================================================================
@@ -134,16 +135,14 @@ test_config_options() {
 
 test_memory_inference() {
     local payload
-    payload=$(build_json_payload MODEL_CONFIG)
-    make_request "POST" "/api/memory/inference" "$payload" "Memory Inference Calculation"
+    payload=$(build_json_payload INFERENCE_CONFIG)
+    make_request "POST" "/api/memory/inference" "$payload" "Inference Memory Calculation"
 }
 
 test_memory_training() {
     local payload
-    # Combine model config with training config
-    local combined_config=("${MODEL_CONFIG[@]}" "${TRAINING_CONFIG[@]}")
-    payload=$(build_json_payload combined_config)
-    make_request "POST" "/api/memory/training" "$payload" "Memory Training Calculation"
+    payload=$(build_json_payload TRAINING_CONFIG)
+    make_request "POST" "/api/memory/training" "$payload" "TrainingMemory Calculation"
 }
 
 # =============================================================================

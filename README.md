@@ -1,6 +1,7 @@
 <!-- PROJECT LOGO -->
 <br />
 <div align="center">
+  <img src="./images/app.png" alt="LLM Toolset">
   <h3 align="center">LLM 工具集 (LLM Toolset) </h3>
   <p align="center">
     面向大型语言模型 (LLMs) 开发与运维的实用工具集合
