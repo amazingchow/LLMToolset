@@ -5,7 +5,7 @@
 SHELL         := /bin/bash
 
 # Project metadata
-PROJECT_NAME := LLMToolsetBackendServer
+PROJECT_NAME := llm-toolset-server
 VERSION      := $(shell git describe --tags --always --dirty 2>/dev/null || echo "v0.1.0")
 COMMIT_HASH  := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 BUILD_TIME   := $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
