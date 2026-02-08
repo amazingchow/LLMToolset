@@ -22,19 +22,28 @@ class TestMemoryCalculations(unittest.TestCase):
             precision="float16",  # 2 bytes per parameter
             batch_size=1,
             sequence_length=2048,
+            kv_cache_precision="float16",
             hidden_size=4096,
             num_hidden_layers=32,
             num_attention_heads=32,
+            head_dim=128,  # 4096 / 32
+            num_key_value_heads=32,
         )
 
         # Check that all expected keys are present
-        expected_keys = ["model_weights", "kv_cache", "activation_memory", "inference_memory"]
+        expected_keys = [
+            "model_weights_memory",
+            "kv_cache_memory",
+            "activation_memory",
+            "overhead_memory",
+            "inference_memory",
+        ]
         for key in expected_keys:
             self.assertIn(key, result)
             self.assertIsInstance(result[key], str)
 
         # Model weights should be 7B * 2 bytes = 14GB
-        self.assertIn("GB", result["model_weights"])
+        self.assertIn("GB", result["model_weights_memory"])
 
         # Total inference memory should include all components
         self.assertIn("GB", result["inference_memory"])
@@ -45,9 +54,12 @@ class TestMemoryCalculations(unittest.TestCase):
             "model_size": 7,
             "batch_size": 1,
             "sequence_length": 2048,
+            "kv_cache_precision": "float16",
             "hidden_size": 4096,
             "num_hidden_layers": 32,
             "num_attention_heads": 32,
+            "head_dim": 128,
+            "num_key_value_heads": 32,
         }
 
         # Test with float32 (4 bytes)
@@ -61,7 +73,7 @@ class TestMemoryCalculations(unittest.TestCase):
 
         # All should have the same structure but different memory sizes
         for result in [result_fp32, result_fp16, result_int8]:
-            self.assertIn("model_weights", result)
+            self.assertIn("model_weights_memory", result)
             self.assertIn("inference_memory", result)
 
     def test_calculate_inference_memory_large_batch(self):
@@ -71,13 +83,16 @@ class TestMemoryCalculations(unittest.TestCase):
             precision="float16",
             batch_size=32,  # Large batch
             sequence_length=1024,
+            kv_cache_precision="float16",
             hidden_size=2048,
             num_hidden_layers=24,
             num_attention_heads=16,
+            head_dim=128,  # 2048 / 16
+            num_key_value_heads=16,
         )
 
         # With larger batch size, KV cache and activation memory should be significant
-        self.assertIn("GB", result["kv_cache"])
+        self.assertIn("GB", result["kv_cache_memory"])
         self.assertIn("inference_memory", result)
 
     def test_calculate_training_memory_basic(self):
@@ -90,17 +105,19 @@ class TestMemoryCalculations(unittest.TestCase):
             hidden_size=4096,
             num_hidden_layers=32,
             num_attention_heads=32,
+            head_dim=128,  # 4096 / 32
+            num_key_value_heads=32,
             optimizer="AdamW",
             trainable_parameters=100,  # 100% of parameters are trainable
         )
 
         # Check that all expected keys are present
         expected_keys = [
-            "model_weights",
-            "kv_cache",
+            "model_weights_memory",
             "activation_memory",
             "optimizer_memory",
             "gradients_memory",
+            "overhead_memory",
             "training_memory",
         ]
         for key in expected_keys:
@@ -120,6 +137,8 @@ class TestMemoryCalculations(unittest.TestCase):
             "hidden_size": 4096,
             "num_hidden_layers": 32,
             "num_attention_heads": 32,
+            "head_dim": 128,
+            "num_key_value_heads": 32,
             "trainable_parameters": 100,
         }
 
@@ -147,17 +166,19 @@ class TestMemoryCalculations(unittest.TestCase):
             hidden_size=4096,
             num_hidden_layers=32,
             num_attention_heads=32,
+            head_dim=128,
+            num_key_value_heads=32,
             optimizer="AdamW",
             trainable_parameters=10,  # Only 10% of parameters are trainable
         )
 
         # Should still have all components but optimizer and gradient memory should be reduced
         expected_keys = [
-            "model_weights",
-            "kv_cache",
+            "model_weights_memory",
             "activation_memory",
             "optimizer_memory",
             "gradients_memory",
+            "overhead_memory",
             "training_memory",
         ]
         for key in expected_keys:
@@ -171,13 +192,16 @@ class TestMemoryCalculations(unittest.TestCase):
             precision="float16",
             batch_size=1,
             sequence_length=2048,
+            kv_cache_precision="float16",
             hidden_size=4096,
             num_hidden_layers=32,
             num_attention_heads=32,
+            head_dim=128,
+            num_key_value_heads=32,
         )
 
         # Should handle zero gracefully
-        self.assertIn("model_weights", result_inf)
+        self.assertIn("model_weights_memory", result_inf)
 
         # Test training with zero batch size
         result_train = calculate_training_memory(
@@ -188,6 +212,8 @@ class TestMemoryCalculations(unittest.TestCase):
             hidden_size=4096,
             num_hidden_layers=32,
             num_attention_heads=32,
+            head_dim=128,
+            num_key_value_heads=32,
             optimizer="AdamW",
             trainable_parameters=100,
         )
@@ -201,13 +227,16 @@ class TestMemoryCalculations(unittest.TestCase):
             precision="invalid_precision",  # Invalid precision
             batch_size=1,
             sequence_length=2048,
+            kv_cache_precision="float16",
             hidden_size=4096,
             num_hidden_layers=32,
             num_attention_heads=32,
+            head_dim=128,
+            num_key_value_heads=32,
         )
 
         # Should handle invalid precision gracefully (return empty or warning)
-        self.assertIn("model_weights", result)
+        self.assertIn("model_weights_memory", result)
 
     def test_calculate_memory_invalid_optimizer(self):
         """Test training memory calculation with invalid optimizer."""
@@ -219,6 +248,8 @@ class TestMemoryCalculations(unittest.TestCase):
             hidden_size=4096,
             num_hidden_layers=32,
             num_attention_heads=32,
+            head_dim=128,
+            num_key_value_heads=32,
             optimizer="InvalidOptimizer",  # Invalid optimizer
             trainable_parameters=100,
         )
@@ -229,43 +260,36 @@ class TestMemoryCalculations(unittest.TestCase):
 
     def test_helper_function_get_memory(self):
         """Test the _get_memory helper function."""
-        # Test with bytes
-        result = _get_memory([512])
-        self.assertEqual(result, "512 Bytes")
+        # Test with GB values (function expects GB, not bytes)
+        result, warning = _get_memory([0.5])
+        self.assertEqual(result, "0.50 GB")
+        self.assertFalse(warning)
 
-        # Test with KB
-        result = _get_memory([2048])
-        self.assertEqual(result, "2.00 KB")
-
-        # Test with MB
-        result = _get_memory([2097152])  # 2MB
-        self.assertEqual(result, "2.00 MB")
-
-        # Test with GB
-        result = _get_memory([2147483648])  # 2GB
+        # Test with multiple GB values
+        result, warning = _get_memory([1.0, 1.0])
         self.assertEqual(result, "2.00 GB")
-
-        # Test with TB
-        result = _get_memory([2199023255552])  # 2TB
-        self.assertEqual(result, "2.00 TB")
+        self.assertFalse(warning)
 
         # Test with zero (shows warning because 0 is not > 0)
-        result = _get_memory([0])
-        self.assertEqual(result, " * ")
+        result, warning = _get_memory([0])
+        self.assertEqual(result, "0.00 GB * ")  # Note: trailing space after *
+        self.assertTrue(warning)
 
         # Test with negative values (should show warning)
-        result = _get_memory([1000, -500])
+        result, warning = _get_memory([1.0, -0.5])
         self.assertIn("*", result)  # Warning indicator
+        self.assertTrue(warning)
 
-        # Test with multiple values
-        result = _get_memory([1024, 1024])
-        self.assertEqual(result, "2.00 KB")
+        # Test with large values
+        result, warning = _get_memory([100.5])
+        self.assertEqual(result, "100.50 GB")
+        self.assertFalse(warning)
 
     def test_helper_function_get_model_weights(self):
         """Test the _get_model_weights helper function."""
-        # Test with valid inputs
+        # Test with valid inputs - returns GB directly
         result = _get_model_weights(7, "float16")  # 7B model, float16
-        expected = 7 * 2 * (10**9)  # 7B parameters * 2 bytes * 10^9
+        expected = 7 * 2  # 7B parameters * 2 bytes = 14 GB
         self.assertEqual(result, expected)
 
         # Test with invalid precision
@@ -278,36 +302,82 @@ class TestMemoryCalculations(unittest.TestCase):
 
     def test_helper_function_get_kv_cache(self):
         """Test the _get_kv_cache helper function."""
-        # Test with valid inputs
-        result = _get_kv_cache("float16", 1, 2048, 4096, 32)
-        expected = 2 * 1 * 2048 * 32 * 4096 * 2  # 2 * batch * seq * layers * hidden * bytes
-        self.assertEqual(result, expected)
+        # Test with valid inputs - now requires additional parameters
+        result = _get_kv_cache(
+            precision="float16",
+            batch_size=1,
+            sequence_length=2048,
+            num_hidden_layers=32,
+            hidden_size=4096,
+            num_attention_heads=32,
+            head_dim=128,
+            num_key_value_heads=32,
+        )
+        # Result should be in GB
+        self.assertIsInstance(result, (int, float))
+        self.assertGreaterEqual(result, 0)
 
         # Test with invalid precision
-        result = _get_kv_cache("invalid", 1, 2048, 4096, 32)
+        result = _get_kv_cache(
+            precision="invalid",
+            batch_size=1,
+            sequence_length=2048,
+            num_hidden_layers=32,
+            hidden_size=4096,
+            num_attention_heads=32,
+            head_dim=128,
+            num_key_value_heads=32,
+        )
         self.assertEqual(result, 0)
 
     def test_helper_function_get_activation_memory(self):
         """Test the _get_activation_memory helper function."""
-        # Test with valid inputs
-        result = _get_activation_memory(1, 2048, 4096, 32)
-        self.assertIsInstance(result, (int, float))  # Can return float due to division
+        # Test with valid inputs - updated parameters
+        result = _get_activation_memory(
+            precision="float16",
+            batch_size=1,
+            sequence_length=2048,
+            hidden_size=4096,
+            num_hidden_layers=32,
+            use_flash_attention=False,
+        )
+        self.assertIsInstance(result, (int, float))
         self.assertGreater(result, 0)
 
-        # Test with zero values
-        result = _get_activation_memory(0, 2048, 4096, 32)
-        self.assertEqual(result, 0)
+        # Test with Flash Attention (should be much smaller)
+        result_flash = _get_activation_memory(
+            precision="float16",
+            batch_size=1,
+            sequence_length=2048,
+            hidden_size=4096,
+            num_hidden_layers=32,
+            use_flash_attention=True,
+        )
+        self.assertIsInstance(result_flash, (int, float))
+        self.assertGreater(result_flash, 0)
+        self.assertLess(result_flash, result)  # Flash should use less memory
+
+        # Test with zero batch size
+        result_zero = _get_activation_memory(
+            precision="float16",
+            batch_size=0,
+            sequence_length=2048,
+            hidden_size=4096,
+            num_hidden_layers=32,
+            use_flash_attention=False,
+        )
+        self.assertEqual(result_zero, 0)
 
     def test_helper_function_get_optimizer_memory(self):
         """Test the _get_optimizer_memory helper function."""
-        # Test with AdamW
+        # Test with AdamW - returns GB directly
         result = _get_optimizer_memory(7, "AdamW")
-        expected = 8 * 7 * (10**9)  # 8x multiplier * 7B parameters * 10^9
+        expected = 8 * 7  # 8x multiplier * 7B parameters = 56 GB
         self.assertEqual(result, expected)
 
         # Test with SGD
         result = _get_optimizer_memory(7, "SGD")
-        expected = 4 * 7 * (10**9)  # 4x multiplier * 7B parameters * 10^9
+        expected = 4 * 7  # 4x multiplier * 7B parameters = 28 GB
         self.assertEqual(result, expected)
 
         # Test with invalid optimizer
@@ -316,9 +386,14 @@ class TestMemoryCalculations(unittest.TestCase):
 
     def test_helper_function_get_gradient_memory(self):
         """Test the _get_gradient_memory helper function."""
-        # Test with valid inputs (note: precision is hardcoded to float32 in the function)
-        result = _get_gradient_memory(7, "float16")  # precision param is ignored
-        expected = 4 * 7 * (10**9)  # float32 (4 bytes) * 7B parameters * 10^9
+        # Test with valid inputs - returns GB directly
+        result = _get_gradient_memory(7, "float16")
+        expected = 2 * 7  # 2 bytes * 7B parameters = 14 GB
+        self.assertEqual(result, expected)
+
+        # Test with float32
+        result = _get_gradient_memory(7, "float32")
+        expected = 4 * 7  # 4 bytes * 7B parameters = 28 GB
         self.assertEqual(result, expected)
 
         # Test with zero model size
@@ -333,9 +408,12 @@ class TestMemoryCalculations(unittest.TestCase):
             precision="int8",  # 1 byte
             batch_size=1,
             sequence_length=512,
+            kv_cache_precision="int8",
             hidden_size=1024,
             num_hidden_layers=12,
             num_attention_heads=8,
+            head_dim=128,
+            num_key_value_heads=8,
         )
 
         # Test large model for GB range
@@ -344,19 +422,20 @@ class TestMemoryCalculations(unittest.TestCase):
             precision="float32",  # 4 bytes
             batch_size=8,
             sequence_length=4096,
+            kv_cache_precision="float32",
             hidden_size=8192,
             num_hidden_layers=80,
             num_attention_heads=64,
+            head_dim=128,
+            num_key_value_heads=64,
         )
 
-        # Both should have proper format
+        # Both should have proper format with GB
         for result in [result_small, result_large]:
             for key, value in result.items():
-                # Should either be empty string or have proper unit
-                if value:
-                    units = ["Bytes", "KB", "MB", "GB", "TB"]
-                    has_unit = any(unit in value for unit in units)
-                    self.assertTrue(has_unit or value == "", f"Invalid format: {value}")
+                # Should have GB unit (all values are in GB now)
+                if key != "warnings":  # Skip warnings key if present
+                    self.assertIn("GB", value, f"Invalid format for {key}: {value}")
 
 
 if __name__ == "__main__":

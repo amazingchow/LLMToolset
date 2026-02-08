@@ -1,7 +1,12 @@
 import React from 'react';
 
+interface InferIconProps extends React.SVGProps<SVGSVGElement> {
+  color?: string;
+  size?: number;
+}
+
 // 使用 forwardRef 可以让你像对DOM元素一样传递 ref
-const InferIcon = React.forwardRef(({ color = 'currentColor', size = 32, ...props }, ref) => (
+const InferIcon = React.forwardRef<SVGSVGElement, InferIconProps>(({ color = 'currentColor', size = 32, ...props }, ref) => (
   <svg
     ref={ref}
     xmlns="http://www.w3.org/2000/svg"
@@ -14,5 +19,7 @@ const InferIcon = React.forwardRef(({ color = 'currentColor', size = 32, ...prop
     <path d="M13.5 12h-1.793L10 10.293V6.5L9.5 6H8V4h.5l.5-.5v-2L8.5 1h-2l-.5.5v2l.5.5H7v2H5.5l-.5.5v3.793L3.293 12H1.5l-.5.5v2l.5.5h2l.5-.5v-1.793L5.707 11h3.586L11 12.707V14.5l.5.5h2l.5-.5v-2l-.5-.5zM7 2h1v1H7V2zM6 7h3v3H6V7zm-3 7H2v-1h1v1zm10 0h-1v-1h1v1z" />
   </svg>
 ));
+
+InferIcon.displayName = 'InferIcon';
 
 export default InferIcon;

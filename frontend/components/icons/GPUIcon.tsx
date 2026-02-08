@@ -1,7 +1,12 @@
 import React from 'react';
 
+interface GPUIconProps extends React.SVGProps<SVGSVGElement> {
+  color?: string;
+  size?: number;
+}
+
 // 使用 forwardRef 可以让你像对DOM元素一样传递 ref
-const GPUIcon = React.forwardRef(({ color = 'currentColor', size = 32, ...props }, ref) => (
+const GPUIcon = React.forwardRef<SVGSVGElement, GPUIconProps>(({ color = 'currentColor', size = 32, ...props }, ref) => (
   <svg
     ref={ref}
     xmlns="http://www.w3.org/2000/svg"
@@ -26,5 +31,7 @@ const GPUIcon = React.forwardRef(({ color = 'currentColor', size = 32, ...props 
     </g>
   </svg>
 ));
+
+GPUIcon.displayName = 'GPUIcon';
 
 export default GPUIcon;

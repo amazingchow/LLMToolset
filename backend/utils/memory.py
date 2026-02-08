@@ -6,7 +6,12 @@ from config.memory import (
     OPTIMIZERS_SIZE,
 )
 
-# 优化计算，在计算内存的时候，去除10亿这个参数量因子，因为10亿约等于1024*1024*1024，约等于1GB，所以可以去除
+# Memory calculation utilities for LLM training and inference
+#
+# Unit conventions:
+#   - model_size: in billions of parameters (B)
+#   - All memory calculations return values in GB (using 1024^3 bytes = 1 GB)
+#   - model_size (B) * bytes_per_param directly gives GB since 1B params ≈ 1GB at 1 byte/param
 
 
 def _get_memory(values: List[float], warnings_list: List[str] | None = None) -> Tuple[str, bool]:
@@ -40,18 +45,29 @@ def _get_model_weights(
     mixed_quantized_ratio: float = 0.0,
     mixed_quantized_precision: str = "int8",
 ) -> float:
-    """Calculate the memory required for model weights.
+    """Calculate the memory required for model weights in GB.
+
+    For standard models: memory = params * bytes_per_param
+    For mixed quantization: memory = (quantized_params * quantized_bytes) +
+                                     (non_quantized_params * normal_bytes)
 
     Args:
         model_size: Model size in billions of parameters
-        precision: Model weights precision
-        is_mixed_quantized: Whether the model is mixed quantized
-        mixed_quantized_ratio: Ratio of parameters that are mixed quantized
-        mixed_quantized_precision: Precision of mixed quantized parameters
+        precision: Model weights precision (e.g., 'float32', 'float16', 'int8')
+        is_mixed_quantized: Whether the model uses mixed quantization
+        mixed_quantized_ratio: Fraction of parameters that are quantized (0.0-1.0)
+        mixed_quantized_precision: Precision of quantized parameters
+
+    Returns:
+        Model weights memory in GB
     """
     try:
         if not is_mixed_quantized:
+            # Simple case: all parameters use same precision
+            # model_size (billions) * bytes_per_param = GB (since 1B ≈ 1GB at 1 byte/param)
             return model_size * DATA_TYPE_SIZES[precision]
+
+        # Mixed quantization: some params at lower precision
         quantized_size = model_size * mixed_quantized_ratio * DATA_TYPE_SIZES[mixed_quantized_precision]
         non_quantized_size = model_size * (1 - mixed_quantized_ratio) * DATA_TYPE_SIZES[precision]
         return quantized_size + non_quantized_size
@@ -71,7 +87,9 @@ def _get_kv_cache(
     num_key_value_heads: int,
     use_page_attention: bool = False,
 ) -> float:
-    """Calculate the memory required for key-value cache.
+    """Calculate the memory required for key-value cache in GB.
+
+    Formula: 2 (K+V) * layers * kv_heads * head_dim * seq * batch * bytes
 
     Args:
         precision: KV cache precision
@@ -83,10 +101,13 @@ def _get_kv_cache(
         head_dim: Head dimension
         num_key_value_heads: Number of key-value heads
         use_page_attention: Whether Page Attention is used
+
+    Returns:
+        KV cache memory in GB
     """
     try:
-        # Basic KV cache calculation
-        kv_size = (
+        # KV cache: 2 (for K and V) * layers * kv_heads * head_dim * seq * batch * bytes
+        kv_size_bytes = (
             2
             * num_hidden_layers
             * num_key_value_heads
@@ -95,9 +116,13 @@ def _get_kv_cache(
             * batch_size
             * DATA_TYPE_SIZES[precision]
         )
+
+        # Page Attention reduces memory by ~86% through efficient memory paging
         if use_page_attention:
-            kv_size = kv_size * 0.14  # Page Attention typically reduces memory by ~86%
-        return kv_size / (10**9)
+            kv_size_bytes = kv_size_bytes * 0.14
+
+        # Convert bytes to GB (using 1024^3)
+        return kv_size_bytes / (1024**3)
     except Exception as e:
         warnings.warn(f"Error calculating KV cache memory: {str(e)}")
         return 0
@@ -107,23 +132,47 @@ def _get_activation_memory(
     precision: str,
     batch_size: int,
     sequence_length: int,
-    head_dim: int,
+    hidden_size: int,
+    num_hidden_layers: int,
     use_flash_attention: bool = False,
 ) -> float:
-    """Calculate the memory required for activations.
+    """Calculate the memory required for activations in GB.
+
+    Activations include: attention outputs, FFN outputs, residual connections,
+    and layer normalizations across all transformer layers.
+
+    Standard formula: batch * seq * hidden * layers * factor * bytes
+    - factor ≈ 12 for standard attention (stores attention matrices)
+    - factor ≈ 1 for Flash Attention (doesn't materialize attention matrices)
 
     Args:
         precision: Activation precision
         batch_size: Batch size
         sequence_length: Input sequence length
-        head_dim: Head dimension
+        hidden_size: Hidden layer size (d_model)
+        num_hidden_layers: Number of transformer layers
         use_flash_attention: Whether Flash Attention is used
+
+    Returns:
+        Activation memory in GB
     """
     try:
-        activation_size = sequence_length * sequence_length * batch_size * head_dim * DATA_TYPE_SIZES[precision]
         if use_flash_attention:
-            activation_size = sequence_length * batch_size * head_dim * DATA_TYPE_SIZES[precision] * 20
-        return activation_size / (1024**3)
+            # Flash Attention: no attention matrix materialization
+            # Only store essential activations (FFN, residuals, norms)
+            factor = 1
+        else:
+            # Standard Attention: stores full attention matrices + activations
+            # Attention matrix: batch * heads * seq * seq (dominates memory)
+            # Plus FFN activations, residuals, layer norms
+            factor = 12
+
+        activation_size_bytes = (
+            batch_size * sequence_length * hidden_size * num_hidden_layers * factor * DATA_TYPE_SIZES[precision]
+        )
+
+        # Convert bytes to GB (using 1024^3)
+        return activation_size_bytes / (1024**3)
     except Exception as e:
         warnings.warn(f"Error calculating activation memory: {str(e)}")
         return 0
@@ -133,13 +182,25 @@ def _get_optimizer_memory(
     model_size: int,
     optimizer: str,
 ) -> float:
-    """Calculate the memory required for optimizer.
+    """Calculate the memory required for optimizer states in GB.
+
+    Optimizer memory stores momentum, variance, and other state information
+    for each parameter being trained.
+
+    Memory multipliers:
+    - Adam/AdamW: 8 bytes per param (2 states × 4 bytes for fp32)
+    - SGD with momentum: 4 bytes per param (1 state × 4 bytes)
+    - Quantized AdamW: 2 bytes per param (quantized states)
 
     Args:
         model_size: Model size in billions of parameters
-        optimizer: Optimizer type
+        optimizer: Optimizer type ('Adam', 'AdamW', 'SGD', 'Quantized AdamW')
+
+    Returns:
+        Optimizer memory in GB
     """
     try:
+        # model_size (billions) * multiplier (bytes/param) = GB
         return model_size * OPTIMIZERS_SIZE[optimizer]
     except Exception as e:
         warnings.warn(f"Error calculating optimizer memory: {str(e)}")
@@ -150,13 +211,22 @@ def _get_gradient_memory(
     model_size: int,
     precision: str = "float32",
 ) -> float:
-    """Calculate the memory required for gradients.
+    """Calculate the memory required for gradients in GB.
+
+    Note: Gradients are typically stored in float32 for numerical stability,
+    even when the model uses lower precision (fp16/bf16). This is the default
+    behavior in mixed-precision training frameworks like AMP.
 
     Args:
         model_size: Model size in billions of parameters
-        precision: Gradients precision
+        precision: Gradients precision (default: float32 for stability)
+
+    Returns:
+        Gradient memory in GB
     """
     try:
+        # model_size is in billions, DATA_TYPE_SIZES gives bytes per param
+        # Since 1B params * 1 byte ≈ 1 GB, we get GB directly
         return model_size * DATA_TYPE_SIZES[precision]
     except Exception as e:
         warnings.warn(f"Error calculating gradient memory: {str(e)}")
@@ -227,11 +297,14 @@ def calculate_inference_memory(
         precision,
         batch_size,
         sequence_length,
-        head_dim,
+        hidden_size,
+        num_hidden_layers,
         use_flash_attention,
     )
-    # 额外开销
-    overhead_memory = 1.04
+    # 额外开销 (framework overhead, CUDA context, etc.)
+    # Typically 10-20% of total memory, here we use 15%
+    base_memory = model_weights + kv_cache + activation_memory
+    overhead_memory = base_memory * 0.15
     # 总 VRAM
     result = {
         "model_weights_memory": _get_memory([model_weights], warnings_list)[0],
@@ -299,15 +372,20 @@ def calculate_training_memory(
         precision,
         batch_size,
         sequence_length,
-        head_dim,
+        hidden_size,
+        num_hidden_layers,
         use_flash_attention,
     )
     # 优化器状态占用的 VRAM
     optimizer_memory = _get_optimizer_memory(model_size, optimizer) * trainable_parameters / 100
     # 梯度占用的 VRAM
-    gradients_memory = _get_gradient_memory(model_size, precision) * trainable_parameters / 100
-    # 额外开销
-    overhead_memory = 1.54
+    # Note: Using float32 for gradients even if model is fp16/bf16 (common in mixed-precision training)
+    gradient_precision = "float32"  # Standard practice for numerical stability
+    gradients_memory = _get_gradient_memory(model_size, gradient_precision) * trainable_parameters / 100
+    # 额外开销 (framework overhead, CUDA context, communication buffers, etc.)
+    # Typically 10-20% of total memory, here we use 15%
+    base_memory = model_weights + activation_memory + optimizer_memory + gradients_memory
+    overhead_memory = base_memory * 0.15
     # 总 VRAM
     result = {
         "model_weights_memory": _get_memory([model_weights], warnings_list)[0],

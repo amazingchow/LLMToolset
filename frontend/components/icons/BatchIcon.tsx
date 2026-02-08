@@ -1,7 +1,11 @@
 import React from 'react';
 
+interface BatchIconProps extends React.SVGProps<SVGSVGElement> {
+  size?: number;
+}
+
 // 使用 forwardRef 可以让你像对DOM元素一样传递 ref
-const BatchIcon = React.forwardRef(({ size = 32, ...props }, ref) => (
+const BatchIcon = React.forwardRef<SVGSVGElement, BatchIconProps>(({ size = 32, ...props }, ref) => (
   <svg
     ref={ref}
     xmlns="http://www.w3.org/2000/svg"
@@ -20,5 +24,7 @@ const BatchIcon = React.forwardRef(({ size = 32, ...props }, ref) => (
     />
   </svg>
 ));
+
+BatchIcon.displayName = 'BatchIcon';
 
 export default BatchIcon;
