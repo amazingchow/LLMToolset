@@ -39,4 +39,4 @@ COPY --from=builder --chown=nextjs:nodejs /app/package.json ./package.json
 USER nextjs
 EXPOSE 13031
 ENV PORT=13031
-CMD ["next start -p 13031"]
+CMD ["npm run start"]
