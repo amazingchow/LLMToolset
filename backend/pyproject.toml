@@ -20,11 +20,6 @@ dev = [
     "ruff>=0.11.12",
 ]
 
-[[tool.uv.index]]
-name = "tsinghua"
-url = "https://pypi.tuna.tsinghua.edu.cn/simple"
-default = true
-
 [tool.ruff]
 lint.select = [
     "E",    # pycodestyle
