@@ -9,7 +9,7 @@
   [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
   [![Node.js 18+](https://img.shields.io/badge/node.js-18+-green.svg)](https://nodejs.org/)
 
-  [在线体验](https://llmtoolset.amazingz.cloud/) · [报告 Bug](https://github.com/amazingchow/LLMToolset/issues) · [提出新功能](https://github.com/amazingchow/LLMToolset/issues)
+  [在线体验](https://llmtool.amazingz.cloud/) · [报告 Bug](https://github.com/amazingchow/LLMToolset/issues) · [提出新功能](https://github.com/amazingchow/LLMToolset/issues)
 </div>
 
 ---
@@ -79,7 +79,7 @@
 
 ### 在线体验（推荐）
 
-无需安装，直接访问 [在线演示](https://llmtoolset.amazingz.cloud/) 立即使用。
+无需安装，直接访问 [在线演示](https://llmtool.amazingz.cloud/) 立即使用。
 
 ### 本地部署
 

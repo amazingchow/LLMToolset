@@ -9,7 +9,7 @@
   [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
   [![Node.js 18+](https://img.shields.io/badge/node.js-18+-green.svg)](https://nodejs.org/)
 
-  [Live Demo](https://llmtoolset.amazingz.cloud/) · [Report Bug](https://github.com/amazingchow/LLMToolset/issues) · [Request Feature](https://github.com/amazingchow/LLMToolset/issues)
+  [Live Demo](https://llmtool.amazingz.cloud/) · [Report Bug](https://github.com/amazingchow/LLMToolset/issues) · [Request Feature](https://github.com/amazingchow/LLMToolset/issues)
 </div>
 
 ---
@@ -79,7 +79,7 @@ Recommended: [Memory Requirements for LLM Training and Inference](https://medium
 
 ### Online Demo (Recommended)
 
-No installation needed, visit [Live Demo](https://llmtoolset.amazingz.cloud/) to start using immediately.
+No installation needed, visit [Live Demo](https://llmtool.amazingz.cloud/) to start using immediately.
 
 ### Local Deployment
 
