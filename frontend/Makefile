@@ -12,8 +12,7 @@ BUILD_TIME   := $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 
 # Docker variables
 DOCKER_IMAGE     := $(PROJECT_NAME):latest
-DOCKER_IMAGE_DEV := $(PROJECT_NAME):dev
-DOCKER_CONTAINER := $(PROJECT_NAME)-container
+DOCKER_CONTAINER := $(PROJECT_NAME)
 DOCKER_PORT      := 13031
 HOST_PORT        := 13031
 
@@ -75,24 +74,12 @@ start: ## Run production server
 .PHONY: docker-build
 docker-build: ## Build production Docker image
 	@echo "Building production Docker image..."
-	@docker build \
-		--build-arg VERSION=$(VERSION) \
-		--build-arg COMMIT_HASH=$(COMMIT_HASH) \
-		--build-arg BUILD_TIME=$(BUILD_TIME) \
-		-t $(DOCKER_IMAGE) \
-		-t $(PROJECT_NAME):latest \
-		-f Dockerfile \
-		.
+	@docker build -t $(DOCKER_IMAGE) -f Dockerfile .
 
 .PHONY: docker-run
 docker-run: ## Run production server in Docker
 	@echo "Running production server in Docker..."
-	@docker run -d \
-		--name=$(DOCKER_CONTAINER) \
-		--network=host \
-		-e NODE_ENV=production \
-		--restart unless-stopped \
-		$(DOCKER_IMAGE)
+	@docker run -d --name=$(DOCKER_CONTAINER) --network=host --restart=unless-stopped $(DOCKER_IMAGE)
 	@echo "Production server running at http://localhost:$(HOST_PORT)"
 
 .PHONY: docker-up
@@ -102,23 +89,19 @@ docker-up: docker-build docker-run ## Build and run production server in Docker
 docker-stop: ## Stop Docker container
 	@echo "Stopping Docker container..."
 	@docker stop $(DOCKER_CONTAINER) 2>/dev/null || true
-	@docker stop $(DOCKER_CONTAINER)-dev 2>/dev/null || true
 
 .PHONY: docker-restart
 docker-restart: docker-stop docker-run ## Restart Docker container
 
 .PHONY: docker-logs
 docker-logs: ## Show Docker container logs
-	@docker logs -f $(DOCKER_CONTAINER) 2>/dev/null || docker logs -f $(DOCKER_CONTAINER)-dev
+	@docker logs -f $(DOCKER_CONTAINER) 2>/dev/null
 
 .PHONY: docker-clean
 docker-clean: docker-stop ## Remove Docker container and image
 	@echo "Cleaning Docker resources..."
 	@docker rm $(DOCKER_CONTAINER) 2>/dev/null || true
-	@docker rm $(DOCKER_CONTAINER)-dev 2>/dev/null || true
 	@docker rmi $(DOCKER_IMAGE) 2>/dev/null || true
-	@docker rmi $(DOCKER_IMAGE_DEV) 2>/dev/null || true
-	@docker rmi $(PROJECT_NAME):latest 2>/dev/null || true
 
 ##@ Cleanup
 
