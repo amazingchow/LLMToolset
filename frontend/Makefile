@@ -11,7 +11,7 @@ COMMIT_HASH  := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown"
 BUILD_TIME   := $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 
 # Docker variables
-DOCKER_IMAGE     := $(PROJECT_NAME):$(VERSION)
+DOCKER_IMAGE     := $(PROJECT_NAME):latest
 DOCKER_IMAGE_DEV := $(PROJECT_NAME):dev
 DOCKER_CONTAINER := $(PROJECT_NAME)-container
 DOCKER_PORT      := 13031
@@ -89,7 +89,7 @@ docker-run: ## Run production server in Docker
 	@echo "Running production server in Docker..."
 	@docker run -d \
 		--name=$(DOCKER_CONTAINER) \
-		--network=host
+		--network=host \
 		-e NODE_ENV=production \
 		--restart unless-stopped \
 		$(DOCKER_IMAGE)
